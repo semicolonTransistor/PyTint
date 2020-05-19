@@ -1,0 +1,17 @@
+start: seen1
+accept-states: [seen1, seen0, seen01, seen011]
+transitions:
+  - [seen1, 0, seen0]
+  - [seen1, 1, seen1]
+
+  - [seen0, 0, rejected]
+  - [seen0, 1, seen01]
+
+  - [seen01, 0, rejected]
+  - [seen01, 1, seen011]
+
+  - [seen011, 0, rejected]
+  - [seen011, 1, seen1]
+
+  - [rejected, 0, rejected]
+  - [rejected, 1, rejected]

@@ -1,0 +1,17 @@
+start: equal
+accept-states: [greater]
+transitions:
+  - [equal, 00, equal]
+  - [equal, 01, less]
+  - [equal, 10, greater]
+  - [equal, 11, equal]
+
+  - [less, 00, less]
+  - [less, 01, less]
+  - [less, 10, less]
+  - [less, 11, less]
+
+  - [greater, 00, greater]
+  - [greater, 01, greater]
+  - [greater, 10, greater]
+  - [greater, 11, greater]

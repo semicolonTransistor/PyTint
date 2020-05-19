@@ -1,0 +1,16 @@
+# test nfa
+# accepts strings in alphabet {0,1} that contains the substring 101 or 11
+
+start: q1
+accept-states: q4
+transitions:
+  - [q1, 0, q1]
+  - [q1, 1, [q1, q2]]
+
+  - [q2, 0, q3]
+  - [q2, epsilon, q3]
+
+  - [q3, 1, q4]
+
+  - [q4, 0, q4]
+  - [q4, 1, q4]
