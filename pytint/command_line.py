@@ -3,6 +3,7 @@ from typing import List
 from pytint.machine_io import load_nfa, load_dfa
 from pytint.visualization import render_finite_automaton, render_finite_automaton_path
 
+
 def main():
 
     parser = argparse.ArgumentParser()

@@ -85,3 +85,8 @@ venv/
 
 # casual testing file
 testing.py
+
+#builds
+dist/
+build/
+*.egg-info
