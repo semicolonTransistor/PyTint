@@ -15,6 +15,12 @@ def load_dfa(ymal_input):
     if isinstance(raw_accepted, str) or not isinstance(raw_accepted, collections.Iterable):
         raw_accepted = [raw_accepted]
     accepted: List[str] = list(map(lambda x: str(x), raw_accepted))
+
+    if "name" in data:
+        name = data["name"]
+    else:
+        name = "Deterministic Finite Automaton"
+
     transitions: DeterministicTransitions = dict()
 
     for transition in data["transitions"]:
@@ -31,7 +37,7 @@ def load_dfa(ymal_input):
         transitions[state][symbol] = next_state
     print(transitions)
     print(accepted)
-    return DeterministicFiniteAutomaton(transitions, start, accepted)
+    return DeterministicFiniteAutomaton(transitions, start, accepted, name)
 
 
 def load_nfa(yaml_input):
@@ -44,6 +50,12 @@ def load_nfa(yaml_input):
     if isinstance(raw_accepted, str) or not isinstance(raw_accepted, collections.Iterable):
         raw_accepted = [raw_accepted]
     accepted: List[str] = list(map(lambda x: str(x), raw_accepted))
+
+    if "name" in data:
+        name = data["name"]
+    else:
+        name = "Deterministic Finite Automaton"
+
     transitions: NonDeterministicTransitions = dict()
 
     for transition in data["transitions"]:
@@ -67,4 +79,4 @@ def load_nfa(yaml_input):
         transitions[state][symbol] = next_states
     print(transitions)
     print(accepted)
-    return NonDeterministicFiniteAutomaton(transitions, start, accepted)
+    return NonDeterministicFiniteAutomaton(transitions, start, accepted, name)

@@ -29,10 +29,11 @@ class MissingTransitionFunction(Exception):
 
 
 class DeterministicFiniteAutomaton:
-    def __init__(self, transitions: DeterministicTransitions, start: str, accepting: Iterable[str]):
+    def __init__(self, transitions: DeterministicTransitions, start: str, accepting: Iterable[str], name: str = ""):
         self.transitions: DeterministicTransitions = transitions
         self.start: str = start
         self.accepting: Tuple[str, ...] = tuple(accepting)
+        self.name = name
 
     def process(self, word: Iterable[str]) -> Tuple[bool, Path]:
         return self.__process(deque(word), self.start)
@@ -58,10 +59,11 @@ class DeterministicFiniteAutomaton:
 
 
 class NonDeterministicFiniteAutomaton:
-    def __init__(self, transitions: NonDeterministicTransitions, start: str, accepting: Iterable[str]):
+    def __init__(self, transitions: NonDeterministicTransitions, start: str, accepting: Iterable[str], name: str = ""):
         self.transitions: NonDeterministicTransitions = transitions
         self.start: str = start
         self.accepting: Iterable[str] = tuple(accepting)
+        self.name = name
 
     def process(self, word: Iterable[str]):
         return self.__process(deque(word), self.start, set())
