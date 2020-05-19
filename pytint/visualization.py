@@ -5,7 +5,7 @@ import random
 import string
 
 
-def render_finite_automaton(automaton: FiniteAutomaton):
+def render_finite_automaton(automaton: FiniteAutomaton) -> Digraph:
     machine_graph: Digraph = Digraph(engine="dot", format="png")
 
     edges: Dict[str, Dict[str, List[str]]] = dict()
@@ -48,10 +48,10 @@ def render_finite_automaton(automaton: FiniteAutomaton):
 
     machine_graph.edge(".", automaton.start)
 
-    machine_graph.view(cleanup=True)
+    return machine_graph
 
 
-def render_finite_automaton_path(path: Path, automaton: FiniteAutomaton):
+def render_finite_automaton_path(path: Path, automaton: FiniteAutomaton) -> Digraph:
 
     def _build_path_graph(rest_path: Path, accepting: Iterable[str]) -> Tuple[Digraph, str, bool]:
         sub_graph = Digraph()
@@ -92,4 +92,4 @@ def render_finite_automaton_path(path: Path, automaton: FiniteAutomaton):
     graph.format = "png"
     graph.node(".", shape="point")
     graph.edge(".", first_node_name)
-    graph.view(cleanup=True)
+    return graph
