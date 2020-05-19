@@ -70,21 +70,21 @@ def render_finite_automaton_path(path: Path, automaton: FiniteAutomaton):
 
         sub_accepted = False
         if not isinstance(rest_path, str):
-            for sub_path in rest_path[2]:
+            for symbol, sub_path in rest_path[1]:
                 sub_sub_graph, node_name, sub_sub_accepted = _build_path_graph(sub_path, accepting)
                 sub_accepted = sub_accepted or sub_sub_accepted
                 sub_graph.subgraph(sub_sub_graph)
                 if sub_sub_accepted:
-                    sub_graph.edge(mangled_name, node_name, rest_path[1])
+                    sub_graph.edge(mangled_name, node_name, symbol)
                 else:
-                    sub_graph.edge(mangled_name, node_name, rest_path[1], color="dimgrey", fontcolor="dimgrey")
+                    sub_graph.edge(mangled_name, node_name, symbol, color="grey", fontcolor="grey")
         else:
             sub_accepted = state in accepting
 
         if sub_accepted:
             sub_graph.node(mangled_name, state, shape=shape)
         else:
-            sub_graph.node(mangled_name, state, shape=shape, color="dimgrey", fontcolor="dimgrey")
+            sub_graph.node(mangled_name, state, shape=shape, color="grey", fontcolor="grey")
 
         return sub_graph, mangled_name, sub_accepted
 

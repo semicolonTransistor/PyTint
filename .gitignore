@@ -73,6 +73,9 @@ fabric.properties
 # venv
 venv/
 
+# cache files
+**/__pycache__/**
+
 #ide stuff
 .idea/
 

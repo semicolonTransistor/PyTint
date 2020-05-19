@@ -5,7 +5,7 @@ import logging
 DeterministicTransitions = Dict[str, Dict[str, str]]
 NonDeterministicTransitions = Dict[str, Dict[str, Iterable[str]]]
 
-Path = Union[str, Tuple[str, str, List["Path"]]]
+Path = Union[str, Tuple[str, List[Tuple[str, "Path"]]]]
 
 fa_logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class DeterministicFiniteAutomaton:
             if state in self.transitions and symbol in self.transitions.get(state):
                 # follow transition function and recursively process the rest of the word.
                 result, path = self.__process(word, self.transitions.get(state).get(symbol))
-                path = (state, symbol, [path])
+                path = (state, [(symbol, path)])
                 return result, path
             else:
                 # Missing transition function
@@ -66,7 +66,7 @@ class NonDeterministicFiniteAutomaton:
     def process(self, word: Iterable[str]):
         return self.__process(deque(word), self.start, set())
 
-    def __process(self, word:Deque[str], state: str, epsilon_set: Set[str]) -> Tuple[bool, Path]:
+    def __process(self, word: Deque[str], state: str, epsilon_set: Set[str]) -> Tuple[bool, Path]:
         if word:
             # if word is not empty, process it
             word_rest = word.copy()
@@ -82,7 +82,7 @@ class NonDeterministicFiniteAutomaton:
 
                     for next_state in non_epsilon_next_states:
                         rest_result, rest_path = self.__process(word_rest.copy(), next_state, set())
-                        rest_paths.append(rest_path)
+                        rest_paths.append((symbol, rest_path))
                         rest_results.append(rest_result)
 
                 if "ε" in self.transitions[state]:
@@ -93,11 +93,11 @@ class NonDeterministicFiniteAutomaton:
 
                     for next_state in epsilon_next_states:
                         rest_result, rest_path = self.__process(word.copy(), next_state, epsilon_set)
-                        rest_paths.append(rest_path)
+                        rest_paths.append(("ε", rest_path))
                         rest_results.append(rest_result)
 
                 if rest_paths:
-                    return any(rest_results), (state, symbol, rest_paths)
+                    return any(rest_results), (state, rest_paths)
                 else:
                     return False, state
             else:
