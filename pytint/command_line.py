@@ -1,6 +1,6 @@
 import argparse
 from typing import List
-from pytint.machine_io import load_nfa, load_dfa
+from pytint.machine_io import load_machine_from_file, UnsupportedMachine, IncompleteMachine
 from pytint.visualization import render_finite_automaton, render_finite_automaton_path
 
 
@@ -9,7 +9,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("machine_file", help="File containing definitions for the machine")
     parser.add_argument("test_file", help="File containing test cases to be used with the machine", nargs="?")
-    parser.add_argument("-m", "--machine-type", choices=["dfa", "nfa"], default="dfa",  help="Type of the machine")
+    parser.add_argument("-m", "--machine-type", choices=["dfa", "nfa"], default="",  help="Type of the machine")
     parser.add_argument("-n", "--name", default=None, help="Name of the machine")
     parser.add_argument("-t", "--test-case", default=None, help="Single test case to use in lieu of a test file")
     parser.add_argument("-s", "--state-diagram", default=None, const="",  nargs="?",
@@ -20,16 +20,13 @@ def main():
 
     # load machine
     try:
-        if arguments.machine_type == "dfa":
-            machine = load_dfa(arguments.machine_file)
-        elif arguments.machine_type == "nfa":
-            machine = load_nfa(arguments.machine_file)
-        else:
-            print("Unsupported machine type, exiting")
-            exit(-1)
+        machine = load_machine_from_file(arguments.machine_file, arguments.machine_type)
     except FileNotFoundError:
-        print("Machine file \"{}\" does not exist!".format(arguments.machine_file))
-        exit(-2)
+        print("Error loading Machine: Machine file \"{}\" does not exist!".format(arguments.machine_file))
+        exit(-1)
+    except (IncompleteMachine, UnsupportedMachine) as e:
+        print("Error loading machine: {}".format(e))
+        exit(-1)
 
     # rename machine if necessary
     if arguments.name is not None:
@@ -48,12 +45,17 @@ def main():
     if arguments.test_case is not None:
         tests.append(arguments.test_case.split(" "))
     elif arguments.test_file is not None:
-        with open(arguments.test_file, "r") as test_file:
-            test_lines = test_file.readlines()
-            for test_line in test_lines:
-                test_line = test_line.strip()
-                test_symbols = test_line.split(" ")
-                tests.append(list(filter(None, test_symbols)))
+        try:
+            with open(arguments.test_file, "r") as test_file:
+                test_lines = test_file.readlines()
+                for test_line in test_lines:
+                    test_line = test_line.strip()
+                    test_symbols = test_line.split(" ")
+                    tests.append(list(filter(None, test_symbols)))
+        except FileNotFoundError:
+            print("Error loading tests: Test file {} does not exist!".format(arguments.test_file))
+        except OSError:
+            print("Error loading tests: Unable to access {}!".format(arguments.test_file))
 
     # set up path graphs
     draw_path_graphs = False
@@ -76,7 +78,7 @@ def main():
         # render path graphs
         if draw_path_graphs:
             render_finite_automaton_path(path, machine).render(machine.name+" - " + " ".join(test),
-                                                               directory=path_graph_dir,cleanup=True)
+                                                               directory=path_graph_dir, cleanup=True)
 
 
 if __name__ == "__main__":

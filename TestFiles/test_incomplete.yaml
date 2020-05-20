@@ -1,7 +1,6 @@
 name: "all 0s separated by at least 2 1"
 type: "dfa"
 start: seen1
-accept-states: [seen1, seen0, seen01, seen011]
 transitions:
   - [seen1, 0, seen0]
   - [seen1, 1, seen1]
