@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pytint",  # Replace with your own username
-    version="0.0.2",
+    version="0.0.3",
     author="Jinyu Liu",
     author_email="electronrush@gmail.com",
     description="A Python interpreter and visualization tool for finite automatons.",

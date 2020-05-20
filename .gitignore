@@ -86,7 +86,10 @@ venv/
 # casual testing file
 testing.py
 
-#builds
+# builds
 dist/
 build/
 *.egg-info
+
+# upload script
+upload.bat
