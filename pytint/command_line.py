@@ -53,9 +53,7 @@ def main():
             for test_line in test_lines:
                 test_line = test_line.strip()
                 test_symbols = test_line.split(" ")
-                if test_symbols:  # add to tests if none empty
-                    tests.append(test_symbols)
-
+                tests.append(list(filter(None, test_symbols)))
 
     # set up path graphs
     draw_path_graphs = False

@@ -69,44 +69,53 @@ class NonDeterministicFiniteAutomaton:
         return self.__process(deque(word), self.start, set())
 
     def __process(self, word: Deque[str], state: str, epsilon_set: Set[str]) -> Tuple[bool, Path]:
+        # print("word: {}, state: {}, epsilon set: {}".format(word, state, epsilon_set))
+
+        # prevents epsilon loop
+        if state in epsilon_set:
+            return False, state
+
+        rest_paths = list()
+        rest_results = list()
+        non_epsilon_next_states = set()
         if word:
             # if word is not empty, process it
             word_rest = word.copy()
             symbol = word_rest.popleft()  # pop off the first symbol in the word
 
-            if state in self.transitions and state not in epsilon_set:  # transition exists and not in epsilon loop
-                rest_paths = list()
-                rest_results = list()
-                non_epsilon_next_states = set()
-                if symbol in self.transitions[state]:
-                    # follow transition function and recursively process the rest of the word.
-                    non_epsilon_next_states.update(self.transitions[state][symbol])
+            if state in self.transitions and symbol in self.transitions[state]:  # transition exists
+                # follow transition function and recursively process the rest of the word.
+                non_epsilon_next_states.update(self.transitions[state][symbol])
 
-                    for next_state in non_epsilon_next_states:
-                        rest_result, rest_path = self.__process(word_rest.copy(), next_state, set())
-                        rest_paths.append((symbol, rest_path))
-                        rest_results.append(rest_result)
+                for next_state in non_epsilon_next_states:
+                    rest_result, rest_path = self.__process(word_rest.copy(), next_state, set())
+                    rest_paths.append((symbol, rest_path))
+                    rest_results.append(rest_result)
 
-                if "ε" in self.transitions[state]:
-                    # process epsilon transition
-                    epsilon_next_states = set(self.transitions[state]["ε"])
-                    epsilon_next_states -= non_epsilon_next_states  # remove explored states
-                    epsilon_set.add(state)
+        if state in self.transitions and "ε" in self.transitions[state]:
+            # process epsilon transition
+            epsilon_next_states = set(self.transitions[state]["ε"])
+            epsilon_next_states -= non_epsilon_next_states  # remove explored states
+            epsilon_set.add(state)
 
-                    for next_state in epsilon_next_states:
-                        rest_result, rest_path = self.__process(word.copy(), next_state, epsilon_set)
-                        rest_paths.append(("ε", rest_path))
-                        rest_results.append(rest_result)
+            for next_state in epsilon_next_states:
+                rest_result, rest_path = self.__process(word.copy(), next_state, epsilon_set.copy())
+                rest_paths.append(("ε", rest_path))
+                rest_results.append(rest_result)
 
-                if rest_paths:
-                    return any(rest_results), (state, rest_paths)
-                else:
-                    return False, state
+        if word:
+            if rest_results:  # if at least 1 transition available
+                return any(rest_results), (state, rest_paths)
+            else:  # dead end
+                return False, state
+
+        else:  # word fully consumed, check if final state is accepting
+            if state in self.accepting:
+                return True, state
+            elif rest_results:  # if not check if there are other paths
+                return any(rest_results), (state, rest_paths)
             else:
                 return False, state
-        else:
-            # end of input reached, just check if the final state is accepting
-            return state in self.accepting, state
 
 
 FiniteAutomaton = Union[DeterministicFiniteAutomaton, NonDeterministicFiniteAutomaton]

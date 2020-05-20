@@ -65,7 +65,6 @@ def render_finite_automaton_path(path: Path, automaton: FiniteAutomaton) -> Digr
 
         if state in accepting:
             shape = "doublecircle"
-
         mangled_name = ''.join(random.choice(string.ascii_letters) for i in range(10)) + "_" + state
 
         sub_accepted = False
