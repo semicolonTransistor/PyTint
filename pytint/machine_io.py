@@ -1,5 +1,4 @@
-from pytint.interpreters import DeterministicFiniteAutomaton, NonDeterministicFiniteAutomaton, FiniteAutomaton
-from pytint.interpreters import DeterministicTransitions, NonDeterministicTransitions
+from pytint.interpreters import FiniteAutomaton
 from typing import List, Union, Dict, Iterable
 import collections
 import yaml
@@ -35,21 +34,25 @@ def load_machine(yaml_input: str, machine_type: str = "", name: str = ""):
 
     if "start" in data:
         start = str(data["start"])
+        start
     else:
         raise IncompleteMachine("start", machine_type)
 
     if machine_type == "dfa" or machine_type == "nfa":
+        machine = FiniteAutomaton(name)
+        machine.set_start_state(start)
         if "accept-states" in data:
             raw_accepted: Union[any, Iterable[any]] = data["accept-states"]
             if isinstance(raw_accepted, str) or not isinstance(raw_accepted, collections.Iterable):
                 raw_accepted = [raw_accepted]
             accepted: List[str] = list(map(lambda x: str(x), raw_accepted))
+
+            for accept_state in accepted:
+                machine.add_accepting_state(accept_state)
         else:
             raise IncompleteMachine("accept-states", machine_type)
 
         if "transitions" in data:
-            transitions = dict()
-
             for transition in data["transitions"]:
                 if len(transition) < 3:
                     raise Exception("Transitions are 3-tuples!")
@@ -70,19 +73,17 @@ def load_machine(yaml_input: str, machine_type: str = "", name: str = ""):
                     if symbol.lower() == "epsilon" or symbol.lower() == "ε":  # process epsilon
                         symbol = "ε"
 
-                    if state not in transitions:
-                        transitions[state] = dict()
-
-                    transitions[state][symbol] = next_states
+                    for next_state in next_states:
+                        machine.add_transition(state, symbol, next_state)
         else:
             raise IncompleteMachine("transitions", machine_type)
 
-        return FiniteAutomaton(transitions, start, accepted, name, machine_type == "dfa")
+        return machine
     else:
         raise UnsupportedMachine("{} is not a supported machine type!".format(machine_type))
 
 
-def load_machine_from_file(path:str, machine_type: str = "", name: str = ""):
+def load_machine_from_file(path: str, machine_type: str = "", name: str = ""):
     with open(path, "r") as f:
         text = f.read()
     return load_machine(text, machine_type, name)

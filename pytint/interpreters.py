@@ -1,146 +1,121 @@
-from typing import Dict, Tuple, List, Union, Iterable, Deque, Set
-from collections import deque
-import logging
-
-DeterministicTransitions = Dict[str, Dict[str, str]]
-NonDeterministicTransitions = Dict[str, Dict[str, Iterable[str]]]
-Transitions = Dict[str, Dict[str, Union[str, Iterable[str]]]]
-
-Path = Union[str, Tuple[str, List[Tuple[str, "Path"]]]]
-
-fa_logger = logging.getLogger(__name__)
+from typing import List, Deque, Dict, Set, Iterable
+Symbol = str
+State = str
 
 
-# exceptions
-class MissingTransitionFunction(Exception):
-    """Exception Raised when no transition function is defined for the current state
-    and input symbol."""
+class FAConfiguration:
+    def __init__(self, tape: List[Symbol], state: State, symbol_read: Symbol, prev_index: int, epsilon_set=None):
 
-    def __init__(self, state: str, symbol: str, rest: Iterable):
+        if epsilon_set is None:
+            epsilon_set = set()
+
+        self.tape = tape
         self.state = state
-        self.symbol = symbol
-        self.rest = rest
-
-    def __str__(self):
-        return ("Unable to find transition function "
-                "for state \"{state}\" and symbol \"{symbol}\" "
-                "whilst processing word {word}").format(state=self.state,
-                                                        symbol=self.symbol,
-                                                        word=[self.symbol] + list(self.rest))
+        self.prev_index = prev_index
+        self.epsilon_set = epsilon_set
+        self.symbol_read = symbol_read
 
 
-class MultipleTransitions(Exception):
-    """Exception raised when multiple transitions are defined for a single state input pair whilst in dfa mode"""
+FAConfigurations = List[FAConfiguration]
+FAComputationHistory = List[FAConfigurations]
 
-    def __init__(self, state: str, symbol: str, rest: Iterable):
-        self.state = state
-        self.symbol = symbol
-        self.rest = rest
-
-    def __str__(self):
-        return ("Multiple transitions"
-                "for state \"{state}\" and symbol \"{symbol}\" "
-                "whilst processing word {word}").format(state=self.state,
-                                                        symbol=self.symbol,
-                                                        word=[self.symbol] + list(self.rest))
+FATransitions = Dict[State, Dict[Symbol, Set[State]]]
 
 
-# finite automatons
 class FiniteAutomaton:
-    def __init__(self, transitions: Transitions, start: str, accepting: Iterable[str],
-                 name: str = "", deterministic: bool = False):
-        for state in transitions:
-            for symbol in transitions[state]:
-                next_state = transitions[state][symbol]
-                if isinstance(next_state, str):
-                    transitions[state][symbol] = [next_state]
+    def __init__(self, name="FA"):
+        self.transitions: FATransitions = dict()
+        self.start_state: State = ""
+        self.accept_states: Set[State] = set()
+        self.current_configurations: FAConfigurations = list()
+        self.computation_history: FAComputationHistory = list()
+        self.complete: bool = False
+        self.accepted: bool = False
+        self.name: str = name
 
-        self.transitions = transitions
-        self.start: str = start
-        self.accepting: Iterable[str] = tuple(accepting)
-        self.name = name
-        self.deterministic = deterministic
+    def add_transition(self, state: State, symbol: Symbol, next_state: State):
+        if state not in self.transitions:
+            self.transitions[state] = dict()
 
-    def process(self, word: Iterable[str]):
-        fa_logger.info("Testing input {}", " ".join(word))
-        return self.__process(deque(word), self.start, set())
+        if symbol not in self.transitions[state]:
+            self.transitions[state][symbol] = set()
 
-    def __process(self, word: Deque[str], state: str, epsilon_set: Set[str]) -> Tuple[bool, Path]:
-        fa_logger.info("{}:{}", state, " ".join(word))
+        self.transitions[state][symbol].add(next_state)
 
-        # prevents epsilon loop
-        if state in epsilon_set:
-            return False, state
+    def set_start_state(self, state: State):
+        self.start_state = state
 
-        rest_paths = list()
-        rest_results = list()
-        non_epsilon_next_states = set()
+    def add_accepting_state(self, state: State):
+        self.accept_states.add(state)
 
-        if word:
-            # if word is not empty, process it
-            word_rest = word.copy()
-            symbol = word_rest.popleft()  # pop off the first symbol in the word
+    def start_new_computation(self, tape: Iterable[Symbol]):
+        # reset internal states and prepare for new computation
+        self.current_configurations = list()
+        self.complete = False
+        self.accepted = False
+        self.computation_history = list()
 
-            if state in self.transitions and symbol in self.transitions[state]:  # transition exists
-                # follow transition function and recursively process the rest of the word.
-                non_epsilon_next_states.update(self.transitions[state][symbol])
+        # set up the starting state
+        self.current_configurations.append(FAConfiguration(list(tape), self.start_state, "", -1))
+        self.computation_history.append(self.current_configurations)
 
-                if self.deterministic:
-                    if len(non_epsilon_next_states) == 0:
-                        # if transition function is empty for some reason
-                        exception = MissingTransitionFunction(state, symbol, word)  # construct an exception
-                        fa_logger.error(str(exception))  # log the problem
-                        raise exception  # raise the exception
-                    elif len(non_epsilon_next_states) > 1:
-                        # if multiple transitions defined for a single state symbol pair(not allowed in nfa)
-                        exception = MultipleTransitions(state, symbol, word)
-                        fa_logger.error(str(exception))
-                        raise exception
+    def simulate_one_step(self) -> bool:
+        # do not execute if computation is already completed
+        if self.complete:
+            return True
 
-                for next_state in non_epsilon_next_states:
-                    rest_result, rest_path = self.__process(word_rest.copy(), next_state, set())
-                    rest_paths.append((symbol, rest_path))
-                    rest_results.append(rest_result)
-            elif self.deterministic:
-                # Missing transition in deterministic mode
-                exception = MissingTransitionFunction(state, symbol, word)  # construct an exception
-                fa_logger.error(str(exception))  # log the problem
-                raise exception  # raise the exception
+        new_configurations: FAConfigurations = list()
+        for index in range(len(self.current_configurations)):
+            this_config = self.current_configurations[index]
 
-        # only process epsilons if machine is non-deterministic
-        if not self.deterministic and state in self.transitions and "ε" in self.transitions[state]:
-            # process epsilon transition
-            epsilon_next_states = set(self.transitions[state]["ε"])
-            epsilon_next_states -= non_epsilon_next_states  # remove explored states
-            epsilon_set.add(state)
+            # terminate computation if an accepting state has been reached with an empty tape
+            if this_config.state in self.accept_states and not this_config.tape:
+                self.complete = True
+                self.accepted = True
+                return True
 
-            for next_state in epsilon_next_states:
-                rest_result, rest_path = self.__process(word.copy(), next_state, epsilon_set.copy())
-                rest_paths.append(("ε", rest_path))
-                rest_results.append(rest_result)
+            # check if there is a entry for the state in the transition function
+            if this_config.state not in self.transitions:
+                # skip this config since there is no transition function out of this state.
+                continue
 
-        if word:
-            if rest_results:  # if at least 1 transition available
-                return any(rest_results), (state, rest_paths)
-            else:  # dead end
-                return False, state
+            # check for epsilon transitions
+            # marked with lower case epsilon(unicode code point 03F5)
+            if "ϵ" in self.transitions[this_config.state]:
+                for next_state in self.transitions[this_config.state]["ϵ"]:
+                    if next_state not in this_config.epsilon_set:
+                        epsilon_set = this_config.epsilon_set.copy()
+                        epsilon_set.add(next_state)
+                        new_configurations.append(FAConfiguration(this_config.tape,
+                                                                  next_state,
+                                                                  "ϵ",
+                                                                  index,
+                                                                  epsilon_set))
 
-        else:  # word fully consumed, check if final state is accepting
-            if state in self.accepting:
-                return True, state
-            elif rest_results:  # if not check if there are other paths
-                return any(rest_results), (state, rest_paths)
-            else:
-                return False, state
+            # explore non-epsilon transitions if input tape is not empty
+            if this_config.tape:
+                new_tape = this_config.tape[1:]
+                symbol = this_config.tape[0]
+
+                # check if a transition function exists for the current state and symbol
+                if symbol in self.transitions[this_config.state]:
+                    for next_state in self.transitions[this_config.state][symbol]:
+                        new_configurations.append(FAConfiguration(new_tape, next_state, symbol, index))
+
+        # if no new states are possible and no accepting state has been reached,
+        # end computation and mark non-acceptance
+        if not new_configurations:
+            self.complete = True
+            self.accepted = False
+            return True
+        else:
+            self.computation_history.append(new_configurations)
+            self.current_configurations = new_configurations
+
+    def simulate_util_completion(self):
+        while not self.simulate_one_step():
+            pass
 
 
-class DeterministicFiniteAutomaton(FiniteAutomaton):
-    def __init__(self, transitions: DeterministicTransitions, start: str, accepting: Iterable[str], name: str = ""):
-        super().__init__(transitions, start, accepting, name, True)
-
-
-class NonDeterministicFiniteAutomaton(FiniteAutomaton):
-    def __init__(self, transitions: NonDeterministicTransitions, start: str, accepting: Iterable[str], name: str = ""):
-        super().__init__(transitions, start, accepting, name, False)
 
 

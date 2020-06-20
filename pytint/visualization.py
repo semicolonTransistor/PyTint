@@ -1,4 +1,4 @@
-from pytint.interpreters import Path, FiniteAutomaton
+from pytint.interpreters import FiniteAutomaton, FAComputationHistory
 from typing import Dict, List, Iterable, Tuple
 from graphviz import Digraph
 import random
@@ -11,17 +11,19 @@ def render_finite_automaton(automaton: FiniteAutomaton) -> Digraph:
     edges: Dict[str, Dict[str, List[str]]] = dict()
 
     # Convert the transition function look up table to symbols on each edge to make drawing easier.
-    for start_state in automaton.transitions.keys():
+    for start_state in automaton.transitions:
         connections = automaton.transitions[start_state]
         for symbol in connections.keys():
             next_states = connections[symbol]
             if start_state not in edges:  # if there isn't a entry for start node yet
                 edges[start_state] = dict()  # initialize entry to empty dict
 
-            if isinstance(next_states, str):
-                next_states = [next_states]
-
             for next_state in next_states:
+                # add an entry for the next_state if there isn't one already. Assuring all reachable states have
+                # an entry.
+                if next_state not in edges:
+                    edges[next_state] = dict()
+
                 if next_state not in edges[start_state]:  # if there isn't an entry for the start/end state combo yet
                     edges[start_state][next_state] = list()  # initialize entry to empty list
 
@@ -34,7 +36,7 @@ def render_finite_automaton(automaton: FiniteAutomaton) -> Digraph:
 
         shape = "circle"  # defaults to circle (for non-accepting state)
 
-        if state in automaton.accepting:
+        if state in automaton.accept_states:
             shape = "doublecircle"  # mark accepting states with a double circle
 
         machine_graph.node(state, shape=shape)  # add the state to graph
@@ -46,49 +48,47 @@ def render_finite_automaton(automaton: FiniteAutomaton) -> Digraph:
         for next_state in connections:
             machine_graph.edge(state, next_state, ", ".join(connections[next_state]))
 
-    machine_graph.edge(".", automaton.start)
+    machine_graph.edge(".", automaton.start_state)
 
     return machine_graph
 
 
-def render_finite_automaton_path(path: Path, automaton: FiniteAutomaton) -> Digraph:
+def render_finite_automaton_history(automaton: FiniteAutomaton, history: FAComputationHistory = None) -> Digraph:
+    # use the history of the automaton by default
+    if history is None:
+        history = automaton.computation_history
 
-    def _build_path_graph(rest_path: Path, accepting: Iterable[str]) -> Tuple[Digraph, str, bool]:
-        sub_graph = Digraph()
+    graph = Digraph()
 
-        if isinstance(rest_path, str):
-            state = rest_path
-        else:
-            state = rest_path[0]
+    # return empty graph if
+    if not history or not history[0]:
+        return graph
 
-        shape = "circle"
+    # set up initial state
+    graph.node("start", shape="point")
 
-        if state in accepting:
-            shape = "doublecircle"
-        mangled_name = ''.join(random.choice(string.ascii_letters) for i in range(10)) + "_" + state
+    # mark as accepting if the state is in accepting states and the tape is empty
+    if history[0][0].state in automaton.accept_states and not history[0][0].tape:
+        graph.node("0-0", shape="doublecircle", label=history[0][0].state, rank="0")
+    else:
+        graph.node("0-0", shape="circle", label=history[0][0].state, rank="0")
 
-        sub_accepted = False
-        if not isinstance(rest_path, str):
-            for symbol, sub_path in rest_path[1]:
-                sub_sub_graph, node_name, sub_sub_accepted = _build_path_graph(sub_path, accepting)
-                sub_accepted = sub_accepted or sub_sub_accepted
-                sub_graph.subgraph(sub_sub_graph)
-                if sub_sub_accepted:
-                    sub_graph.edge(mangled_name, node_name, symbol)
+    graph.edge("start", "0-0")
+
+    for i in range(1, len(history)):
+        with graph.subgraph() as s:
+            for j in range(len(history[i])):
+                configuration = history[i][j]
+
+                # mark as accepting if the state is in accepting states and the tape is empty
+                if configuration.state in automaton.accept_states and not configuration.tape:
+                    shape = "doublecircle"
                 else:
-                    sub_graph.edge(mangled_name, node_name, symbol, color="grey", fontcolor="grey")
-        else:
-            sub_accepted = state in accepting
+                    shape = "circle"
 
-        if sub_accepted:
-            sub_graph.node(mangled_name, state, shape=shape)
-        else:
-            sub_graph.node(mangled_name, state, shape=shape, color="grey", fontcolor="grey")
-
-        return sub_graph, mangled_name, sub_accepted
-
-    graph, first_node_name, accepted = _build_path_graph(path, automaton.accepting)
-    graph.format = "png"
-    graph.node(".", shape="point")
-    graph.edge(".", first_node_name)
+                s.node("{row}-{col}".format(row=i, col=j), shape=shape, label=configuration.state, rank=str(i))
+                s.edge("{row}-{col}".format(row=i-1, col=configuration.prev_index),
+                       "{row}-{col}".format(row=i, col=j),
+                       label=configuration.symbol_read)
     return graph
+

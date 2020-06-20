@@ -1,11 +1,11 @@
 import argparse
 from typing import List
 from pytint.machine_io import load_machine_from_file, UnsupportedMachine, IncompleteMachine
-from pytint.visualization import render_finite_automaton, render_finite_automaton_path
+from pytint.visualization import render_finite_automaton, render_finite_automaton_history
 
 
 def main():
-
+    
     parser = argparse.ArgumentParser()
     parser.add_argument("machine_file", help="File containing definitions for the machine")
     parser.add_argument("test_file", help="File containing test cases to be used with the machine", nargs="?")
@@ -24,9 +24,12 @@ def main():
     except FileNotFoundError:
         print("Error loading Machine: Machine file \"{}\" does not exist!".format(arguments.machine_file))
         exit(-1)
+        return
+
     except (IncompleteMachine, UnsupportedMachine) as e:
         print("Error loading machine: {}".format(e))
         exit(-1)
+        return
 
     # rename machine if necessary
     if arguments.name is not None:
@@ -68,8 +71,9 @@ def main():
 
     # if there are tests to run, run them
     for test in tests:
-        result, path = machine.process(test)
-        if result:
+        machine.start_new_computation(test)
+        machine.simulate_util_completion()
+        if machine.accepted:
             result_text = "accepted"
         else:
             result_text = "rejected"
@@ -77,8 +81,8 @@ def main():
 
         # render path graphs
         if draw_path_graphs:
-            render_finite_automaton_path(path, machine).render(machine.name+" - " + " ".join(test),
-                                                               directory=path_graph_dir, cleanup=True)
+            render_finite_automaton_history(machine).render(machine.name+" - " + " ".join(test),
+                                                            directory=path_graph_dir, cleanup=True)
 
 
 if __name__ == "__main__":
